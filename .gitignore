@@ -24,6 +24,9 @@ dist-ssr
 
 # Rust
 target/
+qt-rewrite/build/
+qt-rewrite/build-win/
+qt-rewrite/package/
 # Tauri generated schemas
 /src-tauri/gen/schemas
 *.tsbuildinfo

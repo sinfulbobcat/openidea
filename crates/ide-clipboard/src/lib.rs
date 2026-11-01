@@ -20,9 +20,18 @@
 //! empty and [`set_files`] fails there.
 
 use std::path::PathBuf;
+use std::{ffi::c_char, ptr};
 
-/// Size of `DROPFILES`: `pFiles`, `pt` (two `LONG`s), `fNC`, `fWide`.
-const HEADER: usize = 20;
+unsafe extern "C" {
+    fn ide_clipboard_encode(
+        paths: *const *const c_char,
+        lengths: *const usize,
+        count: usize,
+        output: *mut u8,
+        capacity: usize,
+    ) -> usize;
+    fn ide_clipboard_decode(bytes: *const u8, length: usize, output: *mut u8, capacity: usize) -> usize;
+}
 
 /// The absolute paths on the clipboard, empty when it holds no file list.
 /// Read failures remain errors so callers can retain an internal copy.
@@ -47,68 +56,45 @@ pub fn set_files(paths: &[PathBuf]) -> bool {
 /// `DROPFILES` for `paths`, in the wide form so names outside the ANSI code
 /// page survive. Empty paths are skipped.
 pub fn encode(paths: &[PathBuf]) -> Vec<u8> {
-    let mut units: Vec<u16> = Vec::new();
-    for path in paths {
-        let path = path.to_string_lossy();
-        if path.is_empty() {
-            continue;
-        }
-        units.extend(path.encode_utf16());
-        units.push(0);
+    let strings: Vec<_> = paths.iter().map(|path| path.to_string_lossy()).collect();
+    let pointers: Vec<_> = strings.iter().map(|path| path.as_ptr().cast::<c_char>()).collect();
+    let lengths: Vec<_> = strings.iter().map(|path| path.len()).collect();
+    let size = unsafe { ide_clipboard_encode(pointers.as_ptr(), lengths.as_ptr(), paths.len(), ptr::null_mut(), 0) };
+    if size == 0 {
+        return Vec::new();
     }
-    // The list ends with an empty string: with one path, two NULs in a row.
-    units.push(0);
-    let mut out = Vec::with_capacity(HEADER + units.len() * 2);
-    out.extend_from_slice(&(HEADER as u32).to_le_bytes()); // pFiles: list starts after the header
-    out.extend_from_slice(&[0u8; 8]); // pt: the drop point, unused
-    out.extend_from_slice(&0u32.to_le_bytes()); // fNC: not a file manager drop
-    out.extend_from_slice(&1u32.to_le_bytes()); // fWide: UTF-16 paths
-    for unit in units {
-        out.extend_from_slice(&unit.to_le_bytes());
+    let mut output = vec![0; size];
+    let written = unsafe {
+        ide_clipboard_encode(pointers.as_ptr(), lengths.as_ptr(), paths.len(), output.as_mut_ptr(), output.len())
+    };
+    if written != size {
+        return Vec::new();
     }
-    out
+    output
 }
 
 /// The paths of a `DROPFILES` block, stopping at the empty string that ends the
 /// list. An ANSI list (pre-Unicode writers) is decoded as UTF-8, lossily.
 pub fn decode(bytes: &[u8]) -> Vec<PathBuf> {
-    if bytes.len() < HEADER {
+    let size = unsafe { ide_clipboard_decode(bytes.as_ptr(), bytes.len(), ptr::null_mut(), 0) };
+    if size == 0 {
         return Vec::new();
     }
-    let offset = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
-    let wide = u32::from_le_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]) != 0;
-    if offset >= bytes.len() {
+    let mut output = vec![0; size];
+    let written = unsafe { ide_clipboard_decode(bytes.as_ptr(), bytes.len(), output.as_mut_ptr(), output.len()) };
+    if written == 0 || written > output.len() {
         return Vec::new();
     }
-    let body = &bytes[offset..];
-    let mut out = Vec::new();
-    if wide {
-        let mut current: Vec<u16> = Vec::new();
-        for chunk in body.as_chunks::<2>().0 {
-            let unit = u16::from_le_bytes(*chunk);
-            if unit != 0 {
-                current.push(unit);
-            } else if current.is_empty() {
-                break;
-            } else {
-                out.push(PathBuf::from(String::from_utf16_lossy(&current)));
-                current.clear();
-            }
-        }
-    } else {
-        for part in body.split(|b| *b == 0) {
-            if part.is_empty() {
-                break;
-            }
-            out.push(PathBuf::from(String::from_utf8_lossy(part).into_owned()));
-        }
-    }
-    out
+    output[..written]
+        .split(|byte| *byte == 0)
+        .take_while(|path| !path.is_empty())
+        .map(|path| PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+        .collect()
 }
 
 #[cfg(windows)]
 mod imp {
-    use super::{HEADER, decode, encode};
+    use super::{decode, encode};
     use std::ffi::c_void;
     use std::path::PathBuf;
     use std::ptr;
@@ -118,6 +104,7 @@ mod imp {
     const CF_HDROP: u32 = 15;
     /// `CF_UNICODETEXT`, so an editor paste of copied files inserts the paths.
     const CF_UNICODETEXT: u32 = 13;
+    const HEADER: usize = 20;
 
     /// An `HGLOBAL` or a `HANDLE`: both are opaque pointers here.
     type Handle = *mut c_void;
