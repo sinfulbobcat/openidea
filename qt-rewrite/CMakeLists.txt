@@ -10,8 +10,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel)
-set(QT_LIBS Qt6::Core Qt6::Gui Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Positioning WebEngineWidgets WebChannel)
+set(QT_LIBS Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Positioning Qt6::WebEngineWidgets Qt6::WebChannel)
 
 add_executable(openidea_qt_rewrite
     src/main.cpp
