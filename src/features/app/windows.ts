@@ -10,6 +10,7 @@
 import { executeAction, type Action } from "@/platform/actions";
 import { t } from "@/platform/i18n";
 import { call, commands, isCancelled, isTauri } from "@/platform/ipc";
+import { invokeCpp, isCppHost } from "@/platform/cppBridge";
 import {
   basename,
   confirmLeaveProject,
@@ -33,7 +34,7 @@ function errorText(e: unknown) {
 }
 
 function desktopOnly(): boolean {
-  if (isTauri()) return false;
+  if (isTauri() || isCppHost()) return false;
   notifications().notify({ level: "warning", title: t("app.window.desktopOnly") });
   return true;
 }
@@ -189,6 +190,9 @@ export function defaultProjectDirectory(): string | undefined {
 }
 
 async function pickFolder(title: string): Promise<string | null> {
+  if (isCppHost()) {
+    return invokeCpp<string | null>("dialog_open_directory", { title, defaultPath: defaultProjectDirectory() });
+  }
   const { open } = await import("@tauri-apps/plugin-dialog");
   const picked = await open({ directory: true, multiple: false, title, defaultPath: defaultProjectDirectory() });
   const path = Array.isArray(picked) ? picked[0] : picked;
@@ -196,6 +200,9 @@ async function pickFolder(title: string): Promise<string | null> {
 }
 
 async function pickFiles(title: string): Promise<string[]> {
+  if (isCppHost()) {
+    return invokeCpp<string[]>("dialog_open_files", { title, defaultPath: defaultProjectDirectory() });
+  }
   const { open } = await import("@tauri-apps/plugin-dialog");
   const picked = await open({ directory: false, multiple: true, title, defaultPath: defaultProjectDirectory() });
   return picked === null ? [] : Array.isArray(picked) ? picked : [picked];

@@ -10,12 +10,12 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-if (TARGET Qt6::Widgets)
-    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-    set(QT_LIBS Qt6::Core Qt6::Gui Qt6::Widgets)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel)
+if (Qt6_FOUND)
+    set(QT_LIBS Qt6::Core Qt6::Gui Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel)
 else()
-    find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
-    set(QT_LIBS Qt5::Core Qt5::Gui Qt5::Widgets)
+    find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel)
+    set(QT_LIBS Qt5::Core Qt5::Gui Qt5::Widgets Qt5::WebEngineWidgets Qt5::WebChannel)
 endif()
 
 add_executable(openidea_qt_rewrite
@@ -36,6 +36,10 @@ add_executable(openidea_qt_rewrite
     src/TerminalPane.cpp
     src/StatusConsole.hpp
     src/StatusConsole.cpp
+    src/ReactAppSchemeHandler.hpp
+    src/ReactAppSchemeHandler.cpp
+    src/NativeBridge.hpp
+    src/NativeBridge.cpp
     src/MainWindow.hpp
     src/MainWindow.cpp
 )
@@ -43,6 +47,7 @@ add_executable(openidea_qt_rewrite
 target_link_libraries(openidea_qt_rewrite PRIVATE ${QT_LIBS})
 
 target_include_directories(openidea_qt_rewrite PRIVATE src)
+target_compile_definitions(openidea_qt_rewrite PRIVATE OPENIDEA_VERSION="${PROJECT_VERSION}")
 
 if (POLICY CMP0071)
     cmake_policy(SET CMP0071 NEW)

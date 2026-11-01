@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { executeAction, registerActions } from "@/platform/actions";
 import { call, commands, onIdeEvent, type TrustDecisions, type TrustStatus } from "@/platform/ipc";
 import { dirname, useProject } from "@/platform/project";
+import { invokeCpp, isCppHost } from "@/platform/cppBridge";
 import { initializeRemoteTrustMigration } from "@/platform/remote";
 import { provideProjectTrustPrompt, type ProjectTrustScope } from "@/platform/projectTrust";
 import { invokeLocal } from "@/platform/tauriCore";
@@ -21,6 +22,10 @@ const usePrompt = create<{
   folder: false,
   finish: null,
 }));
+
+function invokeProjectTrust<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return isCppHost() ? invokeCpp<T>(command, args) : invokeLocal<T>(command, args);
+}
 
 /** One line; a long path loses its middle, so the final folder stays visible. */
 function PathLine({ path }: { path: string }) {
@@ -153,7 +158,7 @@ async function decide(trusted: boolean) {
   if (!path) return;
   const folder = trusted && pending.folder;
   if (pending.scope === "local") {
-    await invokeLocal("project_trust_set", { path, trusted, folder });
+    await invokeProjectTrust("project_trust_set", { path, trusted, folder });
   } else {
     await call(commands.projectTrustSet(path, trusted, folder));
     const project = await commands.projectCurrent();
@@ -167,7 +172,7 @@ export function activate(): () => void {
   const disposers = [
     provideProjectTrustPrompt(async (path, scope) => {
       const status = await (scope === "local"
-        ? invokeLocal<TrustStatus>("project_trust_status", { path })
+        ? invokeProjectTrust<TrustStatus>("project_trust_status", { path })
         : call(commands.projectTrustStatus(path)));
       if (status.decided) return true;
       usePrompt.getState().finish?.(false);

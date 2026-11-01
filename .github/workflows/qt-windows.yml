@@ -6,6 +6,11 @@ on:
     paths:
       - ".github/workflows/qt-windows.yml"
       - "qt-rewrite/**"
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "vite.config.ts"
   workflow_dispatch:
 
 permissions:
@@ -13,40 +18,52 @@ permissions:
 
 jobs:
   windows-x64:
-    name: Windows x64 (Qt 5 / MinGW)
+    name: Windows x64 (Qt 6 / MSVC)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Qt 5 and MinGW
+      - uses: pnpm/action-setup@v4
+        with: { version: 11 }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+
+      - name: Install Qt 6 and WebEngine
         uses: jurplel/install-qt-action@v4
         with:
-          version: "5.15.2"
+          version: "6.8.3"
           host: windows
           target: desktop
-          arch: win64_mingw81
-          tools: "tools_mingw,qt.tools.win64_mingw810"
+          arch: win64_msvc2022_64
+          dir: "${{ github.workspace }}"
+          modules: qtwebengine
+
+      - name: Build React frontend
+        run: pnpm install --frozen-lockfile && pnpm build
+        shell: bash
 
       - name: Configure
-        shell: bash
-        run: cmake -S qt-rewrite -B qt-rewrite/build-win -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S qt-rewrite -B qt-rewrite/build-win -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
 
       - name: Build
-        shell: bash
         run: cmake --build qt-rewrite/build-win --config Release --parallel 2
 
       - name: Bundle application
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $buildDir = Join-Path $env:GITHUB_WORKSPACE "qt-rewrite/build-win"
+          $buildDir = Join-Path $env:GITHUB_WORKSPACE "qt-rewrite/build-win/Release"
           $packageDir = Join-Path $env:GITHUB_WORKSPACE "qt-rewrite/package"
+          $webUiDir = Join-Path $packageDir "webui"
           $executable = Join-Path $buildDir "openidea_qt_rewrite.exe"
           $packagedExecutable = Join-Path $packageDir "openidea_qt_rewrite.exe"
-          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          $webUiSource = Join-Path $env:GITHUB_WORKSPACE "dist"
+          $qtRoot = $env:QT_ROOT_DIR
+          New-Item -ItemType Directory -Force -Path $webUiDir | Out-Null
           Copy-Item -Force $executable $packagedExecutable
-          $deployTool = (Get-Command windeployqt.exe -ErrorAction Stop).Source
-          & $deployTool --compiler-runtime $packagedExecutable
+          Copy-Item -Path (Join-Path $webUiSource "*") -Destination $webUiDir -Recurse -Force
+          & (Join-Path $qtRoot "bin/windeployqt.exe") --compiler-runtime --webengine $packagedExecutable
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Windows test build

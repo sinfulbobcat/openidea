@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { t } from "@/platform/i18n";
+import { isCppHost } from "@/platform/cppBridge";
 import { Icon } from "@/ui";
 import styles from "./TitleBar.module.css";
 
@@ -73,6 +74,8 @@ function SizeButtons() {
 }
 
 export function WindowControls({ dialog = false }: { dialog?: boolean }) {
+  if (isCppHost()) return null;
+
   return (
     <div className={styles.captions}>
       {!dialog && <SizeButtons />}

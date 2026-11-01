@@ -4,6 +4,7 @@
  * Save Mode (with its editor banner).
  */
 import { executeAction, type Action } from "@/platform/actions";
+import { isCppHost } from "@/platform/cppBridge";
 import { isPowerSaveMode } from "@/platform/editorSettings";
 import { call, commands, isTauri } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
@@ -130,7 +131,7 @@ async function togglePowerSave() {
 }
 
 const desktop = (run: () => Promise<void>) => () => {
-  if (isTauri()) return run();
+  if (isTauri() || isCppHost()) return run();
   notifications().notify({ level: "warning", title: "This needs the desktop app" });
 };
 

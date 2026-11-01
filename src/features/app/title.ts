@@ -5,6 +5,7 @@
 import { useEditorRegistry } from "@/editor/api";
 import { t, useI18n } from "@/platform/i18n";
 import { isTauri } from "@/platform/ipc";
+import { invokeCpp, isCppHost } from "@/platform/cppBridge";
 import { basename, useProject } from "@/platform/project";
 
 export function windowTitle(
@@ -20,7 +21,9 @@ export function windowTitle(
 export function installWindowTitle(): () => void {
   let last: string | null = null;
   let setNative: ((title: string) => void) | null = null;
-  if (isTauri()) {
+  if (isCppHost()) {
+    setNative = (title) => void invokeCpp("window_set_title", { title }).catch(() => undefined);
+  } else if (isTauri()) {
     void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
       const w = getCurrentWindow();
       setNative = (title) => void w.setTitle(title).catch(() => {});

@@ -6,6 +6,7 @@
  * this is the one place to hook.
  */
 import { invoke as invokeLocal, type InvokeArgs, type InvokeOptions } from "../../node_modules/@tauri-apps/api/core.js";
+import { invokeCpp, isCppHost } from "./cppBridge";
 
 export * from "../../node_modules/@tauri-apps/api/core.js";
 export { invokeLocal };
@@ -20,5 +21,6 @@ export function setInvokeRoute(next: InvokeRoute | null) {
 }
 
 export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
+  if (isCppHost()) return invokeCpp<T>(cmd, (args ?? {}) as Record<string, unknown>);
   return (route?.(cmd, args, options) ?? invokeLocal<T>(cmd, args, options)) as Promise<T>;
 }

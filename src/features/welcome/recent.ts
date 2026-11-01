@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { executeAction, getAction } from "@/platform/actions";
 import { commands, IpcError, isCancelled, isTauri, type RecentProject } from "@/platform/ipc";
+import { invokeCpp, isCppHost } from "@/platform/cppBridge";
 import { openProject, useProject } from "@/platform/project";
 import { connectRemote, forgetRemote, parseRemoteLocation, recentRemotes, remoteLocation } from "@/platform/remote";
 import { tx } from "@/platform/i18n";
@@ -39,14 +40,16 @@ const SAMPLE: RecentProject[] = [
 ];
 
 export async function loadRecent() {
-  if (!isTauri()) {
+  if (!isTauri() && !isCppHost()) {
     useRecent.setState({ projects: SAMPLE, loaded: true, home: "/Users/dev", version: "0.1.0-dev" });
     return;
   }
   const [projects, info, home] = await Promise.all([
     commands.recentProjects().catch(() => [] as RecentProject[]),
     commands.appInfo().catch(() => null),
-    import("@tauri-apps/api/path").then((m) => m.homeDir()).catch(() => null),
+    isCppHost()
+      ? invokeCpp<string>("home_dir").catch(() => null)
+      : import("@tauri-apps/api/path").then((m) => m.homeDir()).catch(() => null),
   ]);
   useRecent.setState({
     projects: withRemotes(projects),
@@ -83,7 +86,7 @@ export async function removeRecent(path: string) {
     forgetRemote(remote.sshConfig, remote.path);
     return;
   }
-  if (!isTauri()) return;
+  if (!isTauri() && !isCppHost()) return;
   const r = await commands.removeRecentProject(path);
   if (r.status === "error")
     notifications().notify({ level: "error", title: "Cannot remove recent project", body: r.error.message });
@@ -91,7 +94,7 @@ export async function removeRecent(path: string) {
 
 /** Opens a project from the recent list; offers to remove entries whose folder is gone. */
 export async function openRecent(project: Pick<RecentProject, "path" | "name">): Promise<boolean> {
-  if (!isTauri()) {
+  if (!isTauri() && !isCppHost()) {
     notifications().notify({
       level: "warning",
       title: "Opening projects requires the desktop app",

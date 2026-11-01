@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { commands, isTauri } from "@/platform/ipc";
+import { isCppHost } from "@/platform/cppBridge";
 
 interface PlatformInfo {
   /** `macos` | `windows` | `linux` | `web`. */
@@ -32,7 +33,7 @@ export const usePlatform = create<PlatformInfo>(() => {
 });
 
 export async function loadPlatformInfo() {
-  if (!isTauri()) return;
+  if (!isTauri() && !isCppHost()) return;
   try {
     const info = await commands.appInfo();
     usePlatform.setState({

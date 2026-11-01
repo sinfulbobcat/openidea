@@ -1,8 +1,8 @@
 # OpenIDEA Qt Rewrite
 
-This directory is a Qt-based C++ rewrite scaffold for the OpenIDEA IDE.
+This directory contains the C++ desktop host for the existing React workbench.
 
-It is intentionally separate from the existing Rust + Tauri + React codebase and represents a clean C++ desktop rewrite path with GTK-aware theming support.
+The host uses Qt WebEngine for the React UI and Qt WebChannel for C++ IPC. The C++ backend is being ported incrementally; currently, only `app_info` is implemented, so project and editor operations are not yet functional in this host.
 
 ## Build
 
@@ -13,11 +13,10 @@ cmake --build build
 
 ## Windows build for testing
 
-This Linux container cannot produce a real Windows `.exe` without a Windows Qt toolchain. If you want the app on Windows, build it on a Windows machine with Qt 5 installed.
+The Windows build requires Qt 6.8.3 with the MSVC 2022 64-bit kit and WebEngine, plus Node.js, pnpm, CMake, and Visual Studio 2022 C++ tools.
 
-1. Install Qt 5 with MinGW 8.1 64-bit.
-2. Update the `QT_ROOT` path in `build-windows.bat` or `build-windows.ps1` if your install is elsewhere.
-3. Run one of the scripts:
+1. Update `QT_ROOT` in `build-windows.bat` or `build-windows.ps1` if Qt is installed elsewhere.
+2. Run one of the scripts:
 
 ```bat
 build-windows.bat
@@ -29,7 +28,7 @@ or
 pwsh ./build-windows.ps1
 ```
 
-The script will generate a self-contained test folder at `package/`, including `openidea_qt_rewrite.exe` and the required Qt and MinGW runtime DLLs.
+The script builds React, copies its production assets to `package/webui/`, and generates the Qt runtime files next to `package/openidea_qt_rewrite.exe`.
 
 ## Theme behavior
 
