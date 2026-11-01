@@ -37,8 +37,7 @@ jobs:
           target: desktop
           arch: win64_msvc2022_64
           dir: "${{ github.workspace }}"
-          modules: qtwebengine qtwebchannel
-          archives: qtbase qtlocation
+          modules: qtwebengine qtwebchannel qtpositioning
 
       - name: Build React frontend
         run: pnpm install --frozen-lockfile && pnpm build
