@@ -32,7 +32,7 @@ $PackagedExecutable = Join-Path $PackageDir "openidea_qt_rewrite.exe"
 New-Item -ItemType Directory -Force -Path $WebUiDir | Out-Null
 Copy-Item -Force $Executable $PackagedExecutable
 Copy-Item -Path (Join-Path $RepoDir "dist\*") -Destination $WebUiDir -Recurse -Force
-& (Join-Path $QtRoot "bin\windeployqt.exe") --compiler-runtime --webengine $PackagedExecutable
+& (Join-Path $QtRoot "bin\windeployqt.exe") --compiler-runtime $PackagedExecutable
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""

@@ -33,7 +33,7 @@ copy /Y "%BUILD_DIR%\Release\openidea_qt_rewrite.exe" "%PACKAGE_DIR%\openidea_qt
 if errorlevel 1 exit /b 1
 robocopy "%REPO_DIR%\dist" "%PACKAGE_DIR%\webui" /E
 if errorlevel 8 exit /b 1
-"%QT_ROOT%\bin\windeployqt.exe" --compiler-runtime --webengine "%PACKAGE_DIR%\openidea_qt_rewrite.exe"
+"%QT_ROOT%\bin\windeployqt.exe" --compiler-runtime "%PACKAGE_DIR%\openidea_qt_rewrite.exe"
 if errorlevel 1 exit /b 1
 
 echo.
